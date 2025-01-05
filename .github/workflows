@@ -1,1 +1,37 @@
+name: Keepalive Script
+
+# 触发条件
+on:
+  schedule:
+    - cron: '15 2 * * *'  # 每天 UTC 02:15 执行（北京时间 10:15）
+    - cron: '15 12 * * *'  # 每天 UTC 12:15 执行（北京时间 20:15）
+  workflow_dispatch:  # 允许手动触发工作流
+
+jobs:
+  run-keepalive:
+    runs-on: ubuntu-latest  # 运行在 GitHub 提供的最新 Ubuntu 环境中
+
+    steps:
+      # 检出代码
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 安装依赖（如 curl 和 sshpass 等）
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl sshpass netcat-openbsd jq
+
+      # 下载并执行保活脚本
+      - name: Execute keepalive script
+        run: |
+          # 如果脚本在 GitHub 仓库中
+          bash <(curl -Ls https://raw.githubusercontent.com/yourusername/your-repo/main/kp.sh)
+          
+          # 或者，如果脚本已在仓库中并已检出
+          bash ./kp.sh
+          
+      # 输出日志
+      - name: Output keepalive result
+        run: tail -n 20 /root/keep_00.log  # 打印最后 20 行日志（可以根据实际情况调整）
 
