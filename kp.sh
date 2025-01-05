@@ -1,12 +1,18 @@
-#!/bin/bash 
+#!/bin/bash
 # 修改自Serv00|ct8老王保活脚本
 # 转载请著名出自老王，请勿滥用
-# 只保活节点,将此文件放到vps，填写以下服务器配置后bash kp.sh运行即可
-SCRIPT_PATH="/root/kp.sh"                    # 脚本路径
- # serv00或ct8服务器及端口配置。修改s0.serv00.com的服务区(默认s0)，使用argo临时域名时，仅填 账号:密码:UUID:tcp1端口:tcp2端口:udp端口:reality域名 即可
-declare -A servers=(  # 账号:密码:UUID:tcp1端口:tcp2端口:udp端口:argo固定域名:Argo固定隧道密钥(json或token) 
-    ["s0.serv00.com"]='ygkkk:A@123456:2f690ba2-b460-43ca-b9c3-1ac843bd2c70:5525:55255:55255:www.speedtest.net'
-    # 添加更多服务器......
+# 只保活节点, 将此文件放到vps，填写以下服务器配置后 bash kp.sh 运行即可
+
+# GitHub 仓库中的脚本 URL
+GITHUB_SCRIPT_URL="https://raw.githubusercontent.com/yourusername/keepalive-scripts/main/kp.sh"
+
+# 配置保活的多个服务器和域名、账号信息
+# 格式：["服务器地址"]="账号:密码:UUID:tcp1端口:tcp2端口:udp端口:reality域名"
+declare -A servers=(
+    ["server1.example.com"]='user1:password1:uuid1:443:4433:4434:reality1.example.com'
+    ["server2.example.com"]='user2:password2:uuid2:8080:8081:8082:reality2.example.com'
+    ["server3.example.com"]='user3:password3:uuid3:5222:5223:5224:reality3.example.com'
+    # 可以添加更多服务器......
 )
 
 # 定义颜色
@@ -17,6 +23,7 @@ purple() { echo -e "\e[1;35m$1\033[0m"; }
 
 export TERM=xterm
 export DEBIAN_FRONTEND=noninteractive
+
 install_packages() {
     if [ -f /etc/debian_version ]; then
         package_manager="apt-get install -y"
@@ -32,6 +39,7 @@ install_packages() {
     fi
     $package_manager sshpass curl netcat-openbsd jq cron >/dev/null 2>&1 &
 }
+
 install_packages
 clear
 
@@ -44,8 +52,8 @@ add_cron_job() {
         fi
     fi
     # 检查定时任务是否已经存在
-    if ! crontab -l 2>/dev/null | grep -q "$SCRIPT_PATH"; then
-        (crontab -l 2>/dev/null; echo "*/2 * * * * /bin/bash $SCRIPT_PATH >> /root/keep_00.log 2>&1") | crontab -
+    if ! crontab -l 2>/dev/null | grep -q "$GITHUB_SCRIPT_URL"; then
+        (crontab -l 2>/dev/null; echo "*/2 * * * * /bin/bash <(curl -Ls $GITHUB_SCRIPT_URL) >> /root/keep_00.log 2>&1") | crontab -
         green "已添加计划任务，每两分钟执行一次"
     else
         purple "计划任务已存在，跳过添加计划任务"
@@ -85,11 +93,11 @@ run_remote_command() {
     local tcp1_port=$5
     local tcp2_port=$6
     local udp_port=$7
-    local reality=${8}
-    local argo_domain=${9}
+    local reality=$8
+    local argo_domain=$9
     local argo_auth=${10}
 
-    remote_command="reym=${reality} UUID=$suuid vless_port=$tcp1_port vmess_port=$tcp2_port hy2_port=$udp_port ARGO_DOMAIN=$argo_domain ARGO_AUTH='$argo_auth' bash <(curl -Ls https://raw.githubusercontent.com/yonggekkk/Cloudflare_vless_trojan/main/serv00keep.sh)"
+    remote_command="reym=${reality} UUID=$suuid vless_port=$tcp1_port vmess_port=$tcp2_port hy2_port=$udp_port ARGO_DOMAIN=$argo_domain ARGO_AUTH='$argo_auth' bash <(curl -Ls $GITHUB_SCRIPT_URL)"
  
     sshpass -p "$ssh_pass" ssh -o StrictHostKeyChecking=no "$ssh_user@$host" "$remote_command"
 }
@@ -128,7 +136,7 @@ for host in "${!servers[@]}"; do
             argo_attempt=$((argo_attempt+1))
         fi
     done
-   
+
     # 如果3次检测失败，则执行 SSH 连接并执行远程命令
     if [ $tcp_attempt -ge 3 ] || [ $argo_attempt -ge 3 ]; then
         yellow "$time 多次检测失败，尝试通过SSH连接并远程执行命令  服务器: $host  账户: $ssh_user"
